@@ -10,12 +10,18 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
 dotenv.config();
 
+// Define the Frontend URL dynamically
+// On Render, this should be "https://skillswap-frontend.onrender.com"
+// Locally, it is "http://localhost:5173"
+const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+
 passport.use(
   new GoogleStrategy(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: process.env.GOOGLE_CALLBACK_URL, // ✅ Safe (uses the exact https link you saved)
+      // ✅ FIX 1: Use the exact env variable to ensure HTTPS matches Google Console
+      callbackURL: process.env.GOOGLE_CALLBACK_URL, 
       proxy: true
     },
     async (accessToken, refreshToken, profile, done) => {
@@ -29,21 +35,30 @@ export const googleAuthHandler = passport.authenticate("google", {
 });
 
 export const googleAuthCallback = passport.authenticate("google", {
-  failureRedirect: "http://localhost:5173/login",
+  // ✅ FIX 2: Use dynamic CLIENT_URL instead of localhost
+  failureRedirect: `${CLIENT_URL}/login`, 
   session: false,
 });
 
 export const handleGoogleLoginCallback = asyncHandler(async (req, res) => {
   console.log("\n******** Inside handleGoogleLoginCallback function ********");
-  // console.log("User Google Info", req.user);
-
+  
   const existingUser = await User.findOne({ email: req.user._json.email });
 
   if (existingUser) {
     const jwtToken = generateJWTToken_username(existingUser);
     const expiryDate = new Date(Date.now() + 1 * 60 * 60 * 1000);
-    res.cookie("accessToken", jwtToken, { httpOnly: true, expires: expiryDate, secure: false });
-    return res.redirect(`http://localhost:5173/discover`);
+    
+    // ✅ FIX 3: Secure cookies for Production (Render uses HTTPS)
+    res.cookie("accessToken", jwtToken, { 
+      httpOnly: true, 
+      expires: expiryDate, 
+      secure: true, // Set to true for Render (HTTPS), false for localhost
+      sameSite: "None" // Required for cross-site cookies (Frontend/Backend on different domains)
+    });
+    
+    // ✅ FIX 4: Redirect to live site, not localhost
+    return res.redirect(`${CLIENT_URL}/discover`);
   }
 
   let unregisteredUser = await UnRegisteredUser.findOne({ email: req.user._json.email });
@@ -57,12 +72,24 @@ export const handleGoogleLoginCallback = asyncHandler(async (req, res) => {
   }
   const jwtToken = generateJWTToken_email(unregisteredUser);
   const expiryDate = new Date(Date.now() + 0.5 * 60 * 60 * 1000);
-  res.cookie("accessTokenRegistration", jwtToken, { httpOnly: true, expires: expiryDate, secure: false });
-  return res.redirect("http://localhost:5173/register");
+  
+  res.cookie("accessTokenRegistration", jwtToken, { 
+    httpOnly: true, 
+    expires: expiryDate, 
+    secure: true, // Set to true for Render
+    sameSite: "None" // Required for cross-site
+  });
+  
+  // ✅ FIX 5: Redirect to live site, not localhost
+  return res.redirect(`${CLIENT_URL}/register`);
 });
 
 export const handleLogout = (req, res) => {
   console.log("\n******** Inside handleLogout function ********");
-  res.clearCookie("accessToken");
+  res.clearCookie("accessToken", {
+     httpOnly: true,
+     secure: true,
+     sameSite: "None"
+  });
   return res.status(200).json(new ApiResponse(200, null, "User logged out successfully"));
 };
