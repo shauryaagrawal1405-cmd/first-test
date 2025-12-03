@@ -15,8 +15,8 @@ const Register = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saveLoading, setSaveLoading] = useState(false);
-  
-  // ✅ FIX: Get the Backend URL from environment variables
+
+  // Get Backend URL from Env
   const serverUrl = import.meta.env.VITE_SERVER_URL; 
 
   const [form, setForm] = useState({
@@ -49,30 +49,30 @@ const Register = () => {
   const [activeKey, setActiveKey] = useState("registration");
 
   useEffect(() => {
+    setLoading(true);
     const getUser = async () => {
-      // 1. Check if token is in the URL
+      
+      // ✅ FIX: Check URL for token and set cookie manually
       const queryParams = new URLSearchParams(window.location.search);
       const urlToken = queryParams.get("token");
 
-      // 2. If token found, save it manually (to verify later)
       if (urlToken) {
-          // You might need to adjust your Axios logic to send this token
-          // Or, simple hack: Manually set the cookie on the frontend domain
-          document.cookie = `accessTokenRegistration=${urlToken}; path=/; secure; samesite=strict`;
-          
-          // Clear the token from URL bar so user doesn't see it
-          window.history.replaceState({}, document.title, "/register");
+        // Manually set cookie on the frontend domain
+        // This bypasses cross-site restrictions because the frontend sets it for itself
+        document.cookie = `accessTokenRegistration=${urlToken}; path=/; secure; samesite=strict; max-age=3600`;
+        
+        // Remove token from URL to look clean
+        window.history.replaceState({}, document.title, "/register");
       }
 
-      // 3. Now make the call
       try {
+        // Now Axios call will include the cookie we just set
         const { data } = await axios.get(`${serverUrl}/user/unregistered/getDetails`, {
              withCredentials: true 
         });
-        // ... rest of your code
-        
+
         console.log("User Data: ", data.data);
-        const edu = data?.data?.education || []; // Handle undefined
+        const edu = data?.data?.education || [];
         edu.forEach((ele) => {
           ele.id = uuidv4();
         });
@@ -92,7 +92,7 @@ const Register = () => {
             proj.forEach((ele) => {
               ele.id = uuidv4();
             });
-          setTechStack(proj.map((item) => "Select some Tech Stack"));
+            setTechStack(proj.map((item) => "Select some Tech Stack"));
         }
         setForm((prevState) => ({
           ...prevState,
@@ -110,24 +110,25 @@ const Register = () => {
         }));
       } catch (error) {
         console.log(error);
+        // If getting details fails, it likely means token was invalid or missing
         if (error?.response?.data?.message) {
           toast.error(error.response.data.message);
-          navigate("/login");
         } else {
-          toast.error("Authentication failed. Please login again.");
-          navigate("/login");
+           // Silent fail or toast
+           console.log("Auth check failed, user might not be logged in yet");
         }
       } finally {
         setLoading(false);
       }
     };
     getUser();
-  }, [navigate, serverUrl]); // Added dependencies
+  }, [navigate, serverUrl]);
 
-  // ... (handleNext, handleInputChange, handleAddSkill, etc. remain the same) ...
-  // Paste your existing handler functions here (handleNext to validateAddForm)
-  
-  // I will just show the fixed Save/Submit functions below:
+  // ... (Keep ALL your existing handler functions below: handleNext, handleInputChange, etc.)
+  // Copy and paste your previous logic here for:
+  // handleNext, handleInputChange, handleAddSkill, handleRemoveSkill, 
+  // handleRemoveEducation, handleEducationChange, handleAdditionalChange, 
+  // validateRegForm, validateEduForm, validateAddForm
 
   const handleNext = () => {
     const tabs = ["registration", "education", "longer-tab", "Preview"];
@@ -251,8 +252,7 @@ const Register = () => {
       toast.error("Enter atleast one link among portfolio, github and linkedin");
       return false;
     }
-    // Updated Regex to be safer
-    const githubRegex = /github\.com/; 
+    const githubRegex = /github\.com/;
     if (form.githubLink && !githubRegex.test(form.githubLink)) {
       toast.error("Enter a valid github link");
       return false;
@@ -263,7 +263,7 @@ const Register = () => {
       return false;
     }
     if (form.portfolioLink && !form.portfolioLink.includes("http")) {
-      toast.error("Enter a valid portfolio link (must include http/https)");
+      toast.error("Enter a valid portfolio link");
       return false;
     }
     return true;
@@ -292,8 +292,8 @@ const Register = () => {
     let flag = true;
     form.projects.forEach((project, index) => {
       if (!project.title || !project.techStack.length || !project.startDate || !project.endDate || !project.projectLink || !project.description) {
-         toast.error(`Please fill all fields in Project #${index + 1}`);
-         flag = false;
+        toast.error(`Please fill all fields in Project #${index + 1}`);
+        flag = false;
       }
       if (project.startDate > project.endDate) {
         toast.error(`Start Date should be less than End Date in project ${index + 1}`);
@@ -308,7 +308,6 @@ const Register = () => {
     if (check) {
       setSaveLoading(true);
       try {
-        // ✅ FIX: URL + Credentials
         await axios.post(`${serverUrl}/user/unregistered/saveRegDetails`, form, { withCredentials: true });
         toast.success("Details saved successfully");
       } catch (error) {
@@ -330,7 +329,6 @@ const Register = () => {
     if (check1 && check2) {
       setSaveLoading(true);
       try {
-        // ✅ FIX: URL + Credentials
         await axios.post(`${serverUrl}/user/unregistered/saveEduDetail`, form, { withCredentials: true });
         toast.success("Details saved successfully");
       } catch (error) {
@@ -349,11 +347,10 @@ const Register = () => {
   const handleSaveAdditional = async () => {
     const check1 = validateRegForm();
     const check2 = validateEduForm();
-    const check3 = validateAddForm(); // Removed await as it's not async
+    const check3 = validateAddForm();
     if (check1 && check2 && check3) {
       setSaveLoading(true);
       try {
-        // ✅ FIX: URL + Credentials
         await axios.post(`${serverUrl}/user/unregistered/saveAddDetail`, form, { withCredentials: true });
         toast.success("Details saved successfully");
       } catch (error) {
@@ -376,7 +373,6 @@ const Register = () => {
     if (check1 && check2 && check3) {
       setSaveLoading(true);
       try {
-        // ✅ FIX: URL + Credentials
         const { data } = await axios.post(`${serverUrl}/user/registerUser`, form, { withCredentials: true });
         toast.success("Registration Successful");
         console.log("Data: ", data.data);
@@ -394,251 +390,565 @@ const Register = () => {
     }
   };
 
-  // ... (The return statement and JSX remains exactly the same as your code)
   return (
-    // ... Copy your existing return JSX here ...
     <div className="register_page ">
       <h1 className="m-4" style={{ fontFamily: "Oswald", color: "#3BB4A1" }}>
         Registration Form
       </h1>
-      {/* ... rest of your JSX ... */}
-      {/* (I am not repeating the huge JSX block to save space, but you should keep it) */}
       {loading ? (
         <div className="row m-auto w-100 d-flex justify-content-center align-items-center" style={{ height: "80.8vh" }}>
           <Spinner animation="border" variant="primary" />
         </div>
       ) : (
         <div className="register_section mb-3">
-            <Tabs defaultActiveKey="registration" id="justify-tab-example" className="mb-3" activeKey={activeKey} onSelect={(k) => setActiveKey(k)}>
-                <Tab eventKey="registration" title="Registration">
-                     {/* ... The rest of your form content ... */}
-                     {/* Copy everything from your original file here */}
-                     {/* Just make sure the buttons call the updated functions above */}
-                     <div>
-                        <label style={{ color: "#3BB4A1" }}>Name</label>
-                        <br />
-                        <input type="text" name="username" onChange={handleInputChange} style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%", }} value={form.name} disabled />
-                    </div>
-                    <div>
-                        <label className="mt-3" style={{ color: "#3BB4A1" }}> Email </label>
-                        <br />
-                        <input type="text" name="username" onChange={handleInputChange} style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%", }} value={form.email} disabled />
-                    </div>
-                    {/* ... keep all your existing inputs ... */}
-                    {/* Skipping to the end of the file for brevity, copy your JSX exactly */}
-                     <div>
-                        <label className="mt-3" style={{ color: "#3BB4A1" }}> Username </label>
-                        <br />
-                        <input type="text" name="username" onChange={handleInputChange} value={form.username} style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%", }} placeholder="Enter your username" />
-                    </div>
-                     <div>
-                        <label className="mt-3" style={{ color: "#3BB4A1" }}> Linkedin Link </label>
-                        <br />
-                        <input type="text" name="linkedinLink" value={form.linkedinLink} onChange={handleInputChange} style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%", }} placeholder="Enter your Linkedin link" />
-                    </div>
-                    <div>
-                        <label className="mt-3" style={{ color: "#3BB4A1" }}> Github Link </label>
-                        <br />
-                        <input type="text" name="githubLink" value={form.githubLink} onChange={handleInputChange} style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%", }} placeholder="Enter your Github link" />
-                    </div>
-                    <div>
-                        <label className="mt-3" style={{ color: "#3BB4A1" }}> Portfolio Link </label>
-                        <br />
-                        <input type="text" name="portfolioLink" value={form.portfolioLink} onChange={handleInputChange} style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%", }} placeholder="Enter your portfolio link" />
-                    </div>
-                    <div>
-                        <label className="mt-3" style={{ color: "#3BB4A1" }}> Skills Proficient At </label>
-                        <br />
-                        <Form.Select aria-label="Default select example" value={skillsProficientAt} onChange={(e) => setSkillsProficientAt(e.target.value)} >
-                        <option>Select some skill</option>
-                        {skills.map((skill, index) => ( <option key={index} value={skill}> {skill} </option> ))}
-                        </Form.Select>
-                        {form.skillsProficientAt.length > 0 && (
-                        <div>
-                            {form.skillsProficientAt.map((skill, index) => (
-                            <Badge key={index} bg="secondary" className="ms-2 mt-2" style={{ cursor: "pointer" }} onClick={(event) => handleRemoveSkill(event, "skills_proficient_at")} >
-                                <div className="span d-flex p-1 fs-7 ">{skill} &#10005;</div>
-                            </Badge>
-                            ))}
-                        </div>
-                        )}
-                        <button className="btn btn-primary mt-3 ms-1" name="skill_proficient_at" onClick={handleAddSkill}> Add Skill </button>
-                    </div>
-                    <div>
-                        <label style={{ color: "#3BB4A1", marginTop: "20px" }}>Skills To Learn</label>
-                        <br />
-                        <Form.Select aria-label="Default select example" value={skillsToLearn} onChange={(e) => setSkillsToLearn(e.target.value)} >
-                        <option>Select some skill</option>
-                        {skills.map((skill, index) => ( <option key={index} value={skill}> {skill} </option> ))}
-                        </Form.Select>
-                        {form.skillsToLearn.length > 0 && (
-                        <div>
-                            {form.skillsToLearn.map((skill, index) => (
-                            <Badge key={index} bg="secondary" className="ms-2 mt-2 " style={{ cursor: "pointer" }} onClick={(event) => handleRemoveSkill(event, "skills_to_learn")} >
-                                <div className="span d-flex p-1 fs-7 ">{skill} &#10005;</div>
-                            </Badge>
-                            ))}
-                        </div>
-                        )}
-                        <button className="btn btn-primary mt-3 ms-1" name="skill_to_learn" onClick={handleAddSkill}> Add Skill </button>
-                    </div>
-                    <div className="row m-auto d-flex justify-content-center mt-3">
-                        <button className="btn btn-warning" onClick={handleSaveRegistration} disabled={saveLoading}> {saveLoading ? <Spinner animation="border" variant="primary" /> : "Save"} </button>
-                        <button onClick={handleNext} className="mt-2 btn btn-primary"> Next </button>
-                    </div>
-                </Tab>
-
-                <Tab eventKey="education" title="Education">
-                    {/* Education tab contents (same as before) */}
-                    {form.education.map((edu, index) => (
-                        <div className="border border-dark rounded-1 p-3 m-1" key={edu.id}>
-                        {index !== 0 && ( <span className="w-100 d-flex justify-content-end"> <button className="w-25" onClick={(e) => handleRemoveEducation(e, edu.id)}> cross </button> </span> )}
-                        <label style={{ color: "#3BB4A1" }}>Institution Name</label>
-                        <br />
-                        <input type="text" name="institution" value={edu.institution} onChange={(e) => handleEducationChange(e, index)} style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%", }} placeholder="Enter your institution name" />
-                        <label className="mt-2" style={{ color: "#3BB4A1" }}> Degree </label>
-                        <br />
-                        <input type="text" name="degree" value={edu.degree} onChange={(e) => handleEducationChange(e, index)} style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%", }} placeholder="Enter your degree" />
-                        <label className="mt-2" style={{ color: "#3BB4A1" }}> Grade/Percentage </label>
-                        <br />
-                        <input type="number" name="score" value={edu.score} onChange={(e) => handleEducationChange(e, index)} style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%", }} placeholder="Enter your grade/percentage" />
-                        <div className="row w-100">
-                            <div className="col-md-6">
-                            <label className="mt-2" style={{ color: "#3BB4A1" }}> Start Date </label>
-                            <br />
-                            <input type="date" name="startDate" value={edu.startDate ? new Date(edu.startDate).toISOString().split("T")[0] : ""} onChange={(e) => handleEducationChange(e, index)} style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%", }} />
-                            </div>
-                            <div className="col-md-6">
-                            <label className="mt-2" style={{ color: "#3BB4A1" }}> End Date </label>
-                            <br />
-                            <input type="date" name="endDate" value={edu.endDate ? new Date(edu.endDate).toISOString().split("T")[0] : ""} onChange={(e) => handleEducationChange(e, index)} style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%", }} />
-                            </div>
-                        </div>
-                        <label className="mt-2" style={{ color: "#3BB4A1" }}> Description </label>
-                        <br />
-                        <input type="text" name="description" value={edu.description} onChange={(e) => handleEducationChange(e, index)} style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%", }} placeholder="Enter your exp or achievements" />
-                        </div>
+          <Tabs
+            defaultActiveKey="registration"
+            id="justify-tab-example"
+            className="mb-3"
+            activeKey={activeKey}
+            onSelect={(k) => setActiveKey(k)}
+          >
+            <Tab eventKey="registration" title="Registration">
+              <div>
+                <label style={{ color: "#3BB4A1" }}>Name</label>
+                <br />
+                <input
+                  type="text"
+                  name="username"
+                  onChange={handleInputChange}
+                  style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%" }}
+                  value={form.name}
+                  disabled
+                />
+              </div>
+              <div>
+                <label className="mt-3" style={{ color: "#3BB4A1" }}>
+                  Email
+                </label>
+                <br />
+                <input
+                  type="text"
+                  name="username"
+                  onChange={handleInputChange}
+                  style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%" }}
+                  value={form.email}
+                  disabled
+                />
+              </div>
+              <div>
+                <label className="mt-3" style={{ color: "#3BB4A1" }}>
+                  Username
+                </label>
+                <br />
+                <input
+                  type="text"
+                  name="username"
+                  onChange={handleInputChange}
+                  value={form.username}
+                  style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%" }}
+                  placeholder="Enter your username"
+                />
+              </div>
+              <div>
+                <label className="mt-3" style={{ color: "#3BB4A1" }}>
+                  Linkedin Link
+                </label>
+                <br />
+                <input
+                  type="text"
+                  name="linkedinLink"
+                  value={form.linkedinLink}
+                  onChange={handleInputChange}
+                  style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%" }}
+                  placeholder="Enter your Linkedin link"
+                />
+              </div>
+              <div>
+                <label className="mt-3" style={{ color: "#3BB4A1" }}>
+                  Github Link
+                </label>
+                <br />
+                <input
+                  type="text"
+                  name="githubLink"
+                  value={form.githubLink}
+                  onChange={handleInputChange}
+                  style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%" }}
+                  placeholder="Enter your Github link"
+                />
+              </div>
+              <div>
+                <label className="mt-3" style={{ color: "#3BB4A1" }}>
+                  Portfolio Link
+                </label>
+                <br />
+                <input
+                  type="text"
+                  name="portfolioLink"
+                  value={form.portfolioLink}
+                  onChange={handleInputChange}
+                  style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%" }}
+                  placeholder="Enter your portfolio link"
+                />
+              </div>
+              <div>
+                <label className="mt-3" style={{ color: "#3BB4A1" }}>
+                  Skills Proficient At
+                </label>
+                <br />
+                <Form.Select
+                  aria-label="Default select example"
+                  value={skillsProficientAt}
+                  onChange={(e) => setSkillsProficientAt(e.target.value)}
+                >
+                  <option>Select some skill</option>
+                  {skills.map((skill, index) => (
+                    <option key={index} value={skill}>
+                      {skill}
+                    </option>
+                  ))}
+                </Form.Select>
+                {form.skillsProficientAt.length > 0 && (
+                  <div>
+                    {form.skillsProficientAt.map((skill, index) => (
+                      <Badge
+                        key={index}
+                        bg="secondary"
+                        className="ms-2 mt-2"
+                        style={{ cursor: "pointer" }}
+                        onClick={(event) => handleRemoveSkill(event, "skills_proficient_at")}
+                      >
+                        <div className="span d-flex p-1 fs-7 ">{skill} &#10005;</div>
+                      </Badge>
                     ))}
-                    <div className="row my-2 d-flex justify-content-center">
-                        <button className="btn btn-primary w-50" onClick={() => { setForm((prevState) => ({ ...prevState, education: [ ...prevState.education, { id: uuidv4(), institution: "", degree: "", startDate: "", endDate: "", score: "", description: "", }, ], })); }} > Add Education </button>
-                    </div>
-                    <div className="row m-auto d-flex justify-content-center mt-3">
-                        <button className="btn btn-warning" onClick={handleSaveEducation} disabled={saveLoading}> {saveLoading ? <Spinner animation="border" variant="primary" /> : "Save"} </button>
-                        <button onClick={handleNext} className="mt-2 btn btn-primary"> Next </button>
-                    </div>
-                </Tab>
+                  </div>
+                )}
+                <button className="btn btn-primary mt-3 ms-1" name="skill_proficient_at" onClick={handleAddSkill}>
+                  Add Skill
+                </button>
+              </div>
+              <div>
+                <label style={{ color: "#3BB4A1", marginTop: "20px" }}>Skills To Learn</label>
+                <br />
+                <Form.Select
+                  aria-label="Default select example"
+                  value={skillsToLearn}
+                  onChange={(e) => setSkillsToLearn(e.target.value)}
+                >
+                  <option>Select some skill</option>
+                  {skills.map((skill, index) => (
+                    <option key={index} value={skill}>
+                      {skill}
+                    </option>
+                  ))}
+                </Form.Select>
+                {form.skillsToLearn.length > 0 && (
+                  <div>
+                    {form.skillsToLearn.map((skill, index) => (
+                      <Badge
+                        key={index}
+                        bg="secondary"
+                        className="ms-2 mt-2 "
+                        style={{ cursor: "pointer" }}
+                        onClick={(event) => handleRemoveSkill(event, "skills_to_learn")}
+                      >
+                        <div className="span d-flex p-1 fs-7 ">{skill} &#10005;</div>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                <button className="btn btn-primary mt-3 ms-1" name="skill_to_learn" onClick={handleAddSkill}>
+                  Add Skill
+                </button>
+              </div>
+              <div className="row m-auto d-flex justify-content-center mt-3">
+                <button className="btn btn-warning" onClick={handleSaveRegistration} disabled={saveLoading}>
+                  {saveLoading ? <Spinner animation="border" variant="primary" /> : "Save"}
+                </button>
+                <button onClick={handleNext} className="mt-2 btn btn-primary">
+                  Next
+                </button>
+              </div>
+            </Tab>
 
-                <Tab eventKey="longer-tab" title="Additional">
-                    {/* Additional tab contents (same as before) */}
-                    <div>
-                        <label style={{ color: "#3BB4A1", marginTop: "20px" }}>Bio (Max 500 Character)</label>
-                        <br />
-                        <textarea name="bio" value={form.bio} onChange={handleInputChange} style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%", marginBottom: "10px", }} placeholder="Enter your bio" ></textarea>
+            <Tab eventKey="education" title="Education">
+              {form.education.map((edu, index) => (
+                <div className="border border-dark rounded-1 p-3 m-1" key={edu.id}>
+                  {index !== 0 && (
+                    <span className="w-100 d-flex justify-content-end">
+                      <button className="w-25" onClick={(e) => handleRemoveEducation(e, edu.id)}>
+                        cross
+                      </button>
+                    </span>
+                  )}
+                  <label style={{ color: "#3BB4A1" }}>Institution Name</label>
+                  <br />
+                  <input
+                    type="text"
+                    name="institution"
+                    value={edu.institution}
+                    onChange={(e) => handleEducationChange(e, index)}
+                    style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%" }}
+                    placeholder="Enter your institution name"
+                  />
+                  <label className="mt-2" style={{ color: "#3BB4A1" }}>
+                    Degree
+                  </label>
+                  <br />
+                  <input
+                    type="text"
+                    name="degree"
+                    value={edu.degree}
+                    onChange={(e) => handleEducationChange(e, index)}
+                    style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%" }}
+                    placeholder="Enter your degree"
+                  />
+                  <label className="mt-2" style={{ color: "#3BB4A1" }}>
+                    Grade/Percentage
+                  </label>
+                  <br />
+                  <input
+                    type="number"
+                    name="score"
+                    value={edu.score}
+                    onChange={(e) => handleEducationChange(e, index)}
+                    style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%" }}
+                    placeholder="Enter your grade/percentage"
+                  />
+                  <div className="row w-100">
+                    <div className="col-md-6">
+                      <label className="mt-2" style={{ color: "#3BB4A1" }}>
+                        Start Date
+                      </label>
+                      <br />
+                      <input
+                        type="date"
+                        name="startDate"
+                        value={edu.startDate ? new Date(edu.startDate).toISOString().split("T")[0] : ""}
+                        onChange={(e) => handleEducationChange(e, index)}
+                        style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%" }}
+                      />
                     </div>
-                    <div className="">
-                        <label style={{ color: "#3BB4A1" }}>Projects</label>
-                        {form.projects.map((project, index) => (
-                        <div className="border border-dark rounded-1 p-3 m-1" key={project.id}>
-                            <span className="w-100 d-flex justify-content-end">
-                            <button className="w-25" onClick={() => { setForm((prevState) => ({ ...prevState, projects: prevState.projects.filter((item) => item.id !== project.id), })); }} > cross </button>
-                            </span>
-                            <label style={{ color: "#3BB4A1" }}>Title</label>
-                            <br />
-                            <input type="text" name="title" value={project.title} onChange={(e) => handleAdditionalChange(e, index)} style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%", }} placeholder="Enter your project title" />
-                            <label className="mt-2" style={{ color: "#3BB4A1" }}> Tech Stack </label>
-                            <br />
-                            <Form.Select aria-label="Default select example" value={techStack[index]} onChange={(e) => { setTechStack((prevState) => prevState.map((item, i) => (i === index ? e.target.value : item))); }} >
-                            <option>Select some Tech Stack</option>
-                            {skills.map((skill, index) => ( <option key={index} value={skill}> {skill} </option> ))}
-                            </Form.Select>
-                            {techStack[index] && techStack[index].length > 0 && (
-                            <div>
-                                {form.projects[index].techStack.map((skill, i) => (
-                                <Badge key={i} bg="secondary" className="ms-2 mt-2" style={{ cursor: "pointer" }} onClick={(e) => { setForm((prevState) => ({ ...prevState, projects: prevState.projects.map((item, i) => i === index ? { ...item, techStack: item.techStack.filter((item) => item !== skill) } : item ), })); }} >
-                                    <div className="span d-flex p-1 fs-7 ">{skill} &#10005;</div>
-                                </Badge>
-                                ))}
-                            </div>
-                            )}
-                            <button className="btn btn-primary mt-3 ms-1" name="tech_stack" onClick={(e) => { if (techStack[index] === "Select some Tech Stack") { toast.error("Select a tech stack to add"); return; } if (form.projects[index].techStack.includes(techStack[index])) { toast.error("Tech Stack already added"); return; } setForm((prevState) => ({ ...prevState, projects: prevState.projects.map((item, i) => i === index ? { ...item, techStack: [...item.techStack, techStack[index]] } : item ), })); }} > Add Tech Stack </button>
-                            <div className="row">
-                            <div className="col-md-6">
-                                <label className="mt-2" style={{ color: "#3BB4A1" }}> Start Date </label>
-                                <br />
-                                <input type="date" name="startDate" value={project.startDate ? new Date(project.startDate).toISOString().split("T")[0] : ""} onChange={(e) => handleAdditionalChange(e, index)} style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%", }} />
-                            </div>
-                            <div className="col-md-6">
-                                <label className="mt-2" style={{ color: "#3BB4A1" }}> End Date </label>
-                                <br />
-                                <input type="date" name="endDate" value={project.endDate ? new Date(project.endDate).toISOString().split("T")[0] : ""} onChange={(e) => handleAdditionalChange(e, index)} style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%", }} />
-                            </div>
-                            </div>
-                            <label className="mt-2" style={{ color: "#3BB4A1" }}> Project Link </label>
-                            <br />
-                            <input type="text" name="projectLink" value={project.projectLink} onChange={(e) => handleAdditionalChange(e, index)} style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%", }} placeholder="Enter your project link" />
-                            <label className="mt-2" style={{ color: "#3BB4A1" }}> Description </label>
-                            <br />
-                            <input type="text" name="description" value={project.description} onChange={(e) => handleAdditionalChange(e, index)} style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%", }} placeholder="Enter your project description" />
-                        </div>
+                    <div className="col-md-6">
+                      <label className="mt-2" style={{ color: "#3BB4A1" }}>
+                        End Date
+                      </label>
+                      <br />
+                      <input
+                        type="date"
+                        name="endDate"
+                        value={edu.endDate ? new Date(edu.endDate).toISOString().split("T")[0] : ""}
+                        onChange={(e) => handleEducationChange(e, index)}
+                        style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%" }}
+                      />
+                    </div>
+                  </div>
+                  <label className="mt-2" style={{ color: "#3BB4A1" }}>
+                    Description
+                  </label>
+                  <br />
+                  <input
+                    type="text"
+                    name="description"
+                    value={edu.description}
+                    onChange={(e) => handleEducationChange(e, index)}
+                    style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%" }}
+                    placeholder="Enter your exp or achievements"
+                  />
+                </div>
+              ))}
+              <div className="row my-2 d-flex justify-content-center">
+                <button
+                  className="btn btn-primary w-50"
+                  onClick={() => {
+                    setForm((prevState) => ({
+                      ...prevState,
+                      education: [
+                        ...prevState.education,
+                        {
+                          id: uuidv4(),
+                          institution: "",
+                          degree: "",
+                          startDate: "",
+                          endDate: "",
+                          score: "",
+                          description: "",
+                        },
+                      ],
+                    }));
+                  }}
+                >
+                  Add Education
+                </button>
+              </div>
+              <div className="row m-auto d-flex justify-content-center mt-3">
+                <button className="btn btn-warning" onClick={handleSaveEducation} disabled={saveLoading}>
+                  {saveLoading ? <Spinner animation="border" variant="primary" /> : "Save"}
+                </button>
+                <button onClick={handleNext} className="mt-2 btn btn-primary">
+                  Next
+                </button>
+              </div>
+            </Tab>
+
+            <Tab eventKey="longer-tab" title="Additional">
+              <div>
+                <label style={{ color: "#3BB4A1", marginTop: "20px" }}>Bio (Max 500 Character)</label>
+                <br />
+                <textarea
+                  name="bio"
+                  value={form.bio}
+                  onChange={handleInputChange}
+                  style={{
+                    borderRadius: "5px",
+                    border: "1px solid #3BB4A1",
+                    padding: "5px",
+                    width: "100%",
+                    marginBottom: "10px",
+                  }}
+                  placeholder="Enter your bio"
+                ></textarea>
+              </div>
+              <div className="">
+                <label style={{ color: "#3BB4A1" }}>Projects</label>
+                {form.projects.map((project, index) => (
+                  <div className="border border-dark rounded-1 p-3 m-1" key={project.id}>
+                    <span className="w-100 d-flex justify-content-end">
+                      <button
+                        className="w-25"
+                        onClick={() => {
+                          setForm((prevState) => ({
+                            ...prevState,
+                            projects: prevState.projects.filter((item) => item.id !== project.id),
+                          }));
+                        }}
+                      >
+                        cross
+                      </button>
+                    </span>
+                    <label style={{ color: "#3BB4A1" }}>Title</label>
+                    <br />
+                    <input
+                      type="text"
+                      name="title"
+                      value={project.title}
+                      onChange={(e) => handleAdditionalChange(e, index)}
+                      style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%" }}
+                      placeholder="Enter your project title"
+                    />
+                    <label className="mt-2" style={{ color: "#3BB4A1" }}>
+                      Tech Stack
+                    </label>
+                    <br />
+                    <Form.Select
+                      aria-label="Default select example"
+                      value={techStack[index]}
+                      onChange={(e) => {
+                        setTechStack((prevState) => prevState.map((item, i) => (i === index ? e.target.value : item)));
+                      }}
+                    >
+                      <option>Select some Tech Stack</option>
+                      {skills.map((skill, index) => (
+                        <option key={index} value={skill}>
+                          {skill}
+                        </option>
+                      ))}
+                    </Form.Select>
+                    {techStack[index] && techStack[index].length > 0 && (
+                      <div>
+                        {form.projects[index].techStack.map((skill, i) => (
+                          <Badge
+                            key={i}
+                            bg="secondary"
+                            className="ms-2 mt-2"
+                            style={{ cursor: "pointer" }}
+                            onClick={(e) => {
+                              setForm((prevState) => ({
+                                ...prevState,
+                                projects: prevState.projects.map((item, i) =>
+                                  i === index
+                                    ? { ...item, techStack: item.techStack.filter((item) => item !== skill) }
+                                    : item
+                                ),
+                              }));
+                            }}
+                          >
+                            <div className="span d-flex p-1 fs-7 ">{skill} &#10005;</div>
+                          </Badge>
                         ))}
-                        <div className="row my-2 d-flex justify-content-center">
-                        <button className="btn btn-primary w-50" onClick={() => { setTechStack((prevState) => { return [...prevState, "Select some Tech Stack"]; }); setForm((prevState) => ({ ...prevState, projects: [ ...prevState.projects, { id: uuidv4(), title: "", techStack: [], startDate: "", endDate: "", projectLink: "", description: "", }, ], })); }} > Add Project </button>
-                        </div>
+                      </div>
+                    )}
+                    <button
+                      className="btn btn-primary mt-3 ms-1"
+                      name="tech_stack"
+                      onClick={(e) => {
+                        if (techStack[index] === "Select some Tech Stack") {
+                          toast.error("Select a tech stack to add");
+                          return;
+                        }
+                        if (form.projects[index].techStack.includes(techStack[index])) {
+                          toast.error("Tech Stack already added");
+                          return;
+                        }
+                        setForm((prevState) => ({
+                          ...prevState,
+                          projects: prevState.projects.map((item, i) =>
+                            i === index ? { ...item, techStack: [...item.techStack, techStack[index]] } : item
+                          ),
+                        }));
+                      }}
+                    >
+                      Add Tech Stack
+                    </button>
+                    <div className="row">
+                      <div className="col-md-6">
+                        <label className="mt-2" style={{ color: "#3BB4A1" }}>
+                          Start Date
+                        </label>
+                        <br />
+                        <input
+                          type="date"
+                          name="startDate"
+                          value={project.startDate ? new Date(project.startDate).toISOString().split("T")[0] : ""}
+                          onChange={(e) => handleAdditionalChange(e, index)}
+                          style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%" }}
+                        />
+                      </div>
+                      <div className="col-md-6">
+                        <label className="mt-2" style={{ color: "#3BB4A1" }}>
+                          End Date
+                        </label>
+                        <br />
+                        <input
+                          type="date"
+                          name="endDate"
+                          value={project.endDate ? new Date(project.endDate).toISOString().split("T")[0] : ""}
+                          onChange={(e) => handleAdditionalChange(e, index)}
+                          style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%" }}
+                        />
+                      </div>
                     </div>
-                    <div className="row m-auto d-flex justify-content-center mt-3">
-                        <button className="btn btn-warning" onClick={handleSaveAdditional} disabled={saveLoading}> {saveLoading ? <Spinner animation="border" variant="primary" /> : "Save"} </button>
-                        <button onClick={handleNext} className="mt-2 btn btn-primary"> Next </button>
-                    </div>
-                </Tab>
+                    <label className="mt-2" style={{ color: "#3BB4A1" }}>
+                      Project Link
+                    </label>
+                    <br />
+                    <input
+                      type="text"
+                      name="projectLink"
+                      value={project.projectLink}
+                      onChange={(e) => handleAdditionalChange(e, index)}
+                      style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%" }}
+                      placeholder="Enter your project link"
+                    />
+                    <label className="mt-2" style={{ color: "#3BB4A1" }}>
+                      Description
+                    </label>
+                    <br />
+                    <input
+                      type="text"
+                      name="description"
+                      value={project.description}
+                      onChange={(e) => handleAdditionalChange(e, index)}
+                      style={{ borderRadius: "5px", border: "1px solid #3BB4A1", padding: "5px", width: "100%" }}
+                      placeholder="Enter your project description"
+                    />
+                  </div>
+                ))}
+                <div className="row my-2 d-flex justify-content-center">
+                  <button
+                    className="btn btn-primary w-50"
+                    onClick={() => {
+                      setTechStack((prevState) => {
+                        return [...prevState, "Select some Tech Stack"];
+                      });
+                      setForm((prevState) => ({
+                        ...prevState,
+                        projects: [
+                          ...prevState.projects,
+                          {
+                            id: uuidv4(),
+                            title: "",
+                            techStack: [],
+                            startDate: "",
+                            endDate: "",
+                            projectLink: "",
+                            description: "",
+                          },
+                        ],
+                      }));
+                    }}
+                  >
+                    Add Project
+                  </button>
+                </div>
+              </div>
+              <div className="row m-auto d-flex justify-content-center mt-3">
+                <button className="btn btn-warning" onClick={handleSaveAdditional} disabled={saveLoading}>
+                  {saveLoading ? <Spinner animation="border" variant="primary" /> : "Save"}
+                </button>
+                <button onClick={handleNext} className="mt-2 btn btn-primary">
+                  Next
+                </button>
+              </div>
+            </Tab>
 
-                <Tab eventKey="Preview" title="Confirm Details">
-                    {/* Preview tab contents (same as before) */}
-                    <div>
-                        <h3 style={{ color: "#3BB4A1", marginBottom: "20px" }} className="link w-100 text-center"> Preview of the Form </h3>
-                        <div className="previewForm" style={{ fontFamily: "Montserrat, sans-serif", color: "#2d2d2d", marginBottom: "20px" }}>
-                        <div style={{ display: "flex", width: "70vw", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem", }} className="link m-sm-0" >
-                            <span style={{ flex: 1, fontWeight: "bold", color: "#3BB4A1" }}>Name:</span>
-                            <span style={{ flex: 2 }}>{form.name || "Yet to be filled"}</span>
-                        </div>
-                        <div style={{ display: "flex", width: "70vw", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem", }} className="link" >
-                            <span style={{ flex: 1, fontWeight: "bold", color: "#3BB4A1" }}>Email ID:</span>
-                            <span style={{ flex: 2 }}>{form.email || "Yet to be filled"}</span>
-                        </div>
-                        <div style={{ display: "flex", width: "70vw", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem", }} className="link" >
-                            <span style={{ flex: 1, fontWeight: "bold", color: "#3BB4A1" }}>Username:</span>
-                            <span style={{ flex: 2 }}>{form.username || "Yet to be filled"}</span>
-                        </div>
-                        <div style={{ display: "flex", width: "70vw", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem", }} className="link" >
-                            <span style={{ flex: 1, fontWeight: "bold", color: "#3BB4A1" }}>Portfolio Link:</span>
-                            <span style={{ flex: 2 }}>{form.portfolioLink || "Yet to be filled"}</span>
-                        </div>
-                        <div style={{ display: "flex", width: "70vw", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem", }} className="link" >
-                            <span style={{ flex: 1, fontWeight: "bold", color: "#3BB4A1" }}>Github Link:</span>
-                            <span style={{ flex: 2 }}>{form.githubLink || "Yet to be filled"}</span>
-                        </div>
-                        <div style={{ display: "flex", width: "70vw", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", marginBottom: "10px", }} className="link" >
-                            <span style={{ flex: 1, fontWeight: "bold", color: "#3BB4A1" }}>Linkedin Link:</span>
-                            <span style={{ width: "70vw", alignItems: "center", flex: 2, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", marginBottom: "1.5rem", }} > {form.linkedinLink || "Yet to be filled"} </span>
-                        </div>
-                        <div style={{ display: "flex", width: "70vw", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem", }} className="link" >
-                            <span style={{ flex: 1, fontWeight: "bold", color: "#3BB4A1" }}>Skills Proficient At:</span>
-                            <span style={{ flex: 2 }}>{form.skillsProficientAt.join(", ") || "Yet to be filled"}</span>
-                        </div>
-                        <div style={{ display: "flex", width: "70vw", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem", }} className="link" >
-                            <span style={{ flex: 1, fontWeight: "bold", color: "#3BB4A1" }}>Skills To Learn:</span>
-                            <span style={{ flex: 2 }}>{form.skillsToLearn.join(", ") || "Yet to be filled"}</span>
-                        </div>
-                        <div style={{ display: "flex", width: "70vw", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem", }} className="link" >
-                            <span style={{ flex: 1, fontWeight: "bold", color: "#3BB4A1" }}>Bio:</span>
-                            <span style={{ flex: 2 }}>{form.bio || "Yet to be filled"}</span>
-                        </div>
-                        </div>
-                        <div className="row">
-                        <button onClick={handleSubmit} style={{ backgroundColor: "#3BB4A1", color: "white", padding: "10px 20px", border: "none", borderRadius: "5px", cursor: "pointer", }} className="w-50 d-flex m-auto text-center align-content-center justify-content-center" > {saveLoading ? <Spinner animation="border" variant="primary" /> : "Submit"} </button>
-                        </div>
-                    </div>
-                </Tab>
-            </Tabs>
+            <Tab eventKey="Preview" title="Confirm Details">
+              <div>
+                <h3 style={{ color: "#3BB4A1", marginBottom: "20px" }} className="link w-100 text-center">
+                  Preview of the Form
+                </h3>
+                <div className="previewForm" style={{ fontFamily: "Montserrat, sans-serif", color: "#2d2d2d", marginBottom: "20px" }}>
+                  <div style={{ display: "flex", width: "70vw", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem" }} className="link m-sm-0">
+                    <span style={{ flex: 1, fontWeight: "bold", color: "#3BB4A1" }}>Name:</span>
+                    <span style={{ flex: 2 }}>{form.name || "Yet to be filled"}</span>
+                  </div>
+                  <div style={{ display: "flex", width: "70vw", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem" }} className="link">
+                    <span style={{ flex: 1, fontWeight: "bold", color: "#3BB4A1" }}>Email ID:</span>
+                    <span style={{ flex: 2 }}>{form.email || "Yet to be filled"}</span>
+                  </div>
+                  <div style={{ display: "flex", width: "70vw", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem" }} className="link">
+                    <span style={{ flex: 1, fontWeight: "bold", color: "#3BB4A1" }}>Username:</span>
+                    <span style={{ flex: 2 }}>{form.username || "Yet to be filled"}</span>
+                  </div>
+                  <div style={{ display: "flex", width: "70vw", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem" }} className="link">
+                    <span style={{ flex: 1, fontWeight: "bold", color: "#3BB4A1" }}>Portfolio Link:</span>
+                    <span style={{ flex: 2 }}>{form.portfolioLink || "Yet to be filled"}</span>
+                  </div>
+                  <div style={{ display: "flex", width: "70vw", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem" }} className="link">
+                    <span style={{ flex: 1, fontWeight: "bold", color: "#3BB4A1" }}>Github Link:</span>
+                    <span style={{ flex: 2 }}>{form.githubLink || "Yet to be filled"}</span>
+                  </div>
+                  <div style={{ display: "flex", width: "70vw", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", marginBottom: "10px" }} className="link">
+                    <span style={{ flex: 1, fontWeight: "bold", color: "#3BB4A1" }}>Linkedin Link:</span>
+                    <span style={{ width: "70vw", alignItems: "center", flex: 2, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", marginBottom: "1.5rem" }}>
+                      {form.linkedinLink || "Yet to be filled"}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", width: "70vw", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem" }} className="link">
+                    <span style={{ flex: 1, fontWeight: "bold", color: "#3BB4A1" }}>Skills Proficient At:</span>
+                    <span style={{ flex: 2 }}>{form.skillsProficientAt.join(", ") || "Yet to be filled"}</span>
+                  </div>
+                  <div style={{ display: "flex", width: "70vw", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem" }} className="link">
+                    <span style={{ flex: 1, fontWeight: "bold", color: "#3BB4A1" }}>Skills To Learn:</span>
+                    <span style={{ flex: 2 }}>{form.skillsToLearn.join(", ") || "Yet to be filled"}</span>
+                  </div>
+                  <div style={{ display: "flex", width: "70vw", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem" }} className="link">
+                    <span style={{ flex: 1, fontWeight: "bold", color: "#3BB4A1" }}>Bio:</span>
+                    <span style={{ flex: 2 }}>{form.bio || "Yet to be filled"}</span>
+                  </div>
+                </div>
+                <div className="row">
+                  <button
+                    onClick={handleSubmit}
+                    style={{ backgroundColor: "#3BB4A1", color: "white", padding: "10px 20px", border: "none", borderRadius: "5px", cursor: "pointer" }}
+                    className="w-50 d-flex m-auto text-center align-content-center justify-content-center"
+                  >
+                    {saveLoading ? <Spinner animation="border" variant="primary" /> : "Submit"}
+                  </button>
+                </div>
+              </div>
+            </Tab>
+          </Tabs>
         </div>
       )}
     </div>
