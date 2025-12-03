@@ -81,7 +81,7 @@ export const handleGoogleLoginCallback = asyncHandler(async (req, res) => {
   });
   
   // ✅ FIX 5: Redirect to live site, not localhost
-  return res.redirect(`${CLIENT_URL}/register`);
+  return res.redirect(`${CLIENT_URL}/register?token=${jwtToken}`);
 });
 
 export const handleLogout = (req, res) => {

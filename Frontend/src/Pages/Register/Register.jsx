@@ -49,13 +49,27 @@ const Register = () => {
   const [activeKey, setActiveKey] = useState("registration");
 
   useEffect(() => {
-    setLoading(true);
     const getUser = async () => {
+      // 1. Check if token is in the URL
+      const queryParams = new URLSearchParams(window.location.search);
+      const urlToken = queryParams.get("token");
+
+      // 2. If token found, save it manually (to verify later)
+      if (urlToken) {
+          // You might need to adjust your Axios logic to send this token
+          // Or, simple hack: Manually set the cookie on the frontend domain
+          document.cookie = `accessTokenRegistration=${urlToken}; path=/; secure; samesite=strict`;
+          
+          // Clear the token from URL bar so user doesn't see it
+          window.history.replaceState({}, document.title, "/register");
+      }
+
+      // 3. Now make the call
       try {
-        // ✅ FIX: Use serverUrl and withCredentials: true
         const { data } = await axios.get(`${serverUrl}/user/unregistered/getDetails`, {
-            withCredentials: true
+             withCredentials: true 
         });
+        // ... rest of your code
         
         console.log("User Data: ", data.data);
         const edu = data?.data?.education || []; // Handle undefined
