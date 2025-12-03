@@ -6,7 +6,8 @@ const Login = () => {
   const [isHovered, setIsHovered] = useState(false); // State for hover effect
 
   const handleGoogleLogin = () => {
-    window.location.href = "http://localhost:8000/auth/google";
+    const serverUrl = import.meta.env.VITE_SERVER_URL;
+window.location.href = `${serverUrl}/auth/google`;
   };
 
   const containerStyle = {
