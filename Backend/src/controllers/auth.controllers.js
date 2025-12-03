@@ -10,7 +10,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
 dotenv.config();
 
-// Define Client URL (Frontend)
+// ✅ CRITICAL: Ensure this matches your deployed Frontend URL in Render Env
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 
 passport.use(
@@ -41,15 +41,13 @@ export const handleGoogleLoginCallback = asyncHandler(async (req, res) => {
 
   const existingUser = await User.findOne({ email: req.user._json.email });
 
-  // CASE 1: User is already registered -> Login
   if (existingUser) {
     const jwtToken = generateJWTToken_username(existingUser);
     
-    // ✅ FIX: Pass token in URL query parameter instead of setting cookie directly
+    // ✅ FIX: Pass token in URL query parameter
     return res.redirect(`${CLIENT_URL}/discover?token=${jwtToken}&type=login`);
   }
 
-  // CASE 2: User is new -> Registration
   let unregisteredUser = await UnRegisteredUser.findOne({ email: req.user._json.email });
   if (!unregisteredUser) {
     console.log("Creating new Unregistered User");
